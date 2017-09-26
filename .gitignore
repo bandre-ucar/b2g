@@ -1,8 +1,10 @@
 # editor files
 *~
 
-# python files
+# python related
+env/
 *.pyc
+*.egg-info
 
 # macOS stuff
 .DS_Store
