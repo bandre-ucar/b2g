@@ -1,0 +1,10 @@
+# editor files
+*~
+
+# python files
+*.pyc
+
+# macOS stuff
+.DS_Store
+
+
