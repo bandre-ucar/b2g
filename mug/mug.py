@@ -110,6 +110,58 @@ def view_org(gh, org_name):
         print()
 
 
+def add_collaborator(gh, org_name, login, repos):
+    """
+    """
+    print('-'*70)
+    print("add_colloborator - {org} : {login} : {repos}".format(
+        org=org_name, login=login, repos=repos))
+
+    # verify we have a valid login name
+    user = gh.get_user(login)
+    if not user:
+        raise RuntimeError('invalid user login')
+
+    gh_org = gh.get_organization(org_name)
+    for repo in repos:
+        gh_repo = gh_org.get_repo(repo)
+        gh_repo.add_to_collaborators(login)
+
+
+def remove_collaborator(gh, org_name, login, repos):
+    """
+    """
+    print('-'*70)
+    print("remove_colloborator - {org} : {login} : {repos}".format(
+        org=org_name, login=login, repos=repos))
+
+    # verify we have a valid login name
+    user = gh.get_user(login)
+    if not user:
+        raise RuntimeError('invalid user login')
+
+    gh_org = gh.get_organization(org_name)
+    for repo in repos:
+        gh_repo = gh_org.get_repo(repo)
+        gh_repo.remove_from_collaborators(login)
+
+
+def view_collaborators(gh, org_name, repos):
+    """
+    """
+    print('-'*70)
+    print("view_colloborators - {org} : {repos}".format(
+        org=org_name, repos=repos))
+
+
+    gh_org = gh.get_organization(org_name)
+    for repo in repos:
+        gh_repo = gh_org.get_repo(repo)
+        print("  {0} collaborators : ".format(repo))
+        for collab in gh_repo.get_collaborators():
+            print("    {0}".format(collab))
+
+
 # -------------------------------------------------------------------------------
 #
 # main
@@ -126,7 +178,23 @@ def main(options):
     if False:
         view_user(gh)
 
-    view_org(gh, _organization)
+    if False:
+        view_org(gh, _organization)
+
+    if True:
+        repos = ['test-repo1', 'test-repo2']
+        users = ['test1-cseg', ]
+        view_collaborators(gh, _organization, repos)
+
+        for user in users:
+            add_collaborator(gh, _organization, user, repos)
+
+        view_collaborators(gh, _organization, repos)
+
+        for user in users:
+            remove_collaborator(gh, _organization, user, repos)
+
+        view_collaborators(gh, _organization, repos)
 
     return 0
 
