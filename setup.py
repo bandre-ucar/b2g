@@ -46,19 +46,19 @@ def get_dependencies():
     return readfile(DEPENDENCIES_FILE, lambda f: f.read().strip())
 
 setup(
-    name="manage_users_github",
+    name="bugzilla_to_github",
     author="Ben Andre",
     author_email="andre@ucar.edu",
-    packages=['mug'],
+    packages=['b2g'],
     version=get_version(),
-    scripts=['mug/mug.py',
+    scripts=['b2g/b2g.py',
              ],
 
     install_requires=get_requires(),
     #dependency_links=get_dependencies(),
     include_package_data=True,
     zip_safe=True,
-    test_suite="mug.tests",
-    description="Utility to manage github organization users.",
+    test_suite="b2g.tests",
+    description="Custom utility to migrate bugzilla issues to github issues..",
     use_2to3=True,
 )
