@@ -86,7 +86,7 @@ def commandline_options():
     parser.add_argument('--report-rate-limit', action='store_true', default=False,
                         help='request and report github api rate limit info')
 
-    parser.add_argument('--resume', nargs=1, default=None,
+    parser.add_argument('--resume', nargs=1, default=[''],
                         help='request and report github api rate limit info')
 
     options = parser.parse_args()
@@ -224,24 +224,106 @@ abuse_pause = 2*abuse_pause_delta
 
 
 def check_for_abuse_error(status, data):
+    global abuse_pause
     if (status == 403 and 'abuse' in data['message']):
-        abuse_pause += abuse_pause_delta
         print('Abuse pause for {0} seconds....'.format(abuse_pause))
         time.sleep(abuse_pause)
+        abuse_pause += abuse_pause_delta
     else:
         raise error
 
 
-def b2g_comment(bug_id, comment):
+def update_issue_label_list(bug, field, gh_labels, label_map, new_labels):
+    bugz_item = bug.find('./{0}'.format(field))
+    if bugz_item is not None:
+        item = bugz_item.text
+        item = item.lower()
+        try:
+            label = label_map[item]
+        except KeyError:
+            # not mapped, ignore
+            label = None
+        if label:
+            try:
+                ghlabel = gh_labels[label]
+                new_labels.append(ghlabel)
+            except KeyError:
+                msg = "mapped bugzill label '{0}' was not found in github label list: {1}.".format(label, gh_labels.keys())
+                raise RuntimeError(msg)
+
+
+def create_attachment_list(bug):
+    new_list = []
+    attachments = bug.findall('./attachment')
+    for attachment in attachments:
+        name = attachment.find('./filename').text.strip()
+        description = attachment.find('./desc').text.strip()
+        text = "{name} - {desc}".format(
+            name=name, desc=description)
+        new_list.append(text)
+    return new_list
+
+
+def optional_list(bug, field):
+    new_list = []
+    list_xml = bug.findall('./{0}'.format(field))
+    for item in list_xml:
+        new_list.append(item.text)
+    return new_list
+
+
+def b2g_comment(bug_id, comment, main_issue=False, cc_list=[],
+                blocks_list=[], depends_list=[],
+                attachment_list=[]):
     xml_who = comment.find('./who')
     who_text = '{0} < {1} >'.format(
         xml_who.get('name'), xml_who.text)
     when_text = comment.find('./bug_when').text
     comment_text = comment.find('./thetext').text
-    body_text = '''**bugzilla id: {0}**
-**{1} - {2}**
-{3}'''.format(
-        bug_id, who_text, when_text, comment_text)
+
+    if main_issue:
+        blocks_text = "**Bugzilla Blocks:** "
+        if not blocks_list:
+            blocks_list.append('None')
+        for blocks in blocks_list:
+            blocks_text = "{0} {1}, ".format(blocks_text, blocks)
+        blocks_text = "{0}\n".format(blocks_text)
+
+        depends_text = "**Bugzilla Depends:** "
+        if not depends_list:
+            depends_list.append('None')
+        for depends in depends_list:
+            depends_text = "{0} {1}, ".format(depends_text, depends)
+        depends_text = "{0}\n".format(depends_text)
+
+        cc_text = "**Bugzilla CC:** "
+        if not cc_list:
+            cc_list.append('None')
+        for cc in cc_list:
+            cc_text = "{0} {1}, ".format(cc_text, cc)
+        cc_text = "{0}\n".format(cc_text)
+
+        attachment_text = ''
+        attachment_base = '**Bugzilla Attachment:** '
+        if not attachment_list:
+            attachment_list.append('None')
+        for attachment in attachment_list:
+            txt = '{0} {1}\n'.format(attachment_base, attachment)
+            attachment_text = '{0}{1}'.format(attachment_text, txt)
+        attachment_text = '{0}\n'.format(attachment_text)
+
+    else:
+        blocks_text = ''
+        depends_text = ''
+        cc_text = ''
+        attachment_text = ''
+
+    body_text = '''**{who} - {when}**
+**Bugzilla Id:** {id}
+{blocks}{depends}{cc}{attachment}{cmmnt}'''.format(
+    id=bug_id, who=who_text, when=when_text,
+    cc=cc_text, blocks=blocks_text, depends=depends_text,
+    cmmnt=comment_text, attachment=attachment_text)
     return body_text
 
 # -----------------------------------------------------------------------
@@ -296,39 +378,56 @@ def main(options):
         
         time.sleep(friendly_pause)
 
-    # create a lookup table of xml users?
 
-    # fetch user list
-    gh_users_all = gh.search_users('bandre-ucar')
-    gh_users = {}
-    for user in gh_users_all:
-        gh_users[user.login] = user
-    print(gh_users)
+    if False:
+        # create a lookup table of xml users?
+        # fetch user list
+        gh_users_all = gh.search_users('bandre-ucar')
+        gh_users = {}
+        for user in gh_users_all:
+            gh_users[user.login] = user
+        print(gh_users)
 
     # add new milestones to the repo
     print("Processing milestones.")
-    new_milestones = convert_config.get('github', 'milestones').split()
-    milestones = gh_repo.get_milestones()
+    new_milestones = convert_config.get('github', 'milestones').split(',')
+    gh_milestones = gh_repo.get_milestones()
     for name in new_milestones:
+        name = name.strip().lower()
         found_milestone = False
-        for milestone in milestones:
-            if name == milestone.title:
+        for milestone in gh_milestones:
+            if name == milestone.title.lower():
                 found_milestone = True
         if not found_milestone:
             gh_repo.create_milestone(name)
     # save the updated list
-    milestones = gh_repo.get_milestones()
+    gh_milestones = gh_repo.get_milestones()
+    milestones = {}
+    for ghm in gh_milestones:
+        milestones[ghm.title.lower()] = ghm
+    # create map for converting bugzilla milestones to github
+    milestone_map = {}
+    mm = convert_config.options('milestone_map')
+    for m in mm:
+        milestone_map[m] = convert_config.get('milestone_map', m)
 
     # add new labels to the repo
     print("Processing labels")
-    label_names = convert_config.get('github', 'labels').split()
+    label_names = convert_config.get('github', 'labels').split(',')
     labels = {}
+    gh_labels = gh_repo.get_labels()
+    for ghl in gh_labels:
+        labels[ghl.name] = ghl
     for name in label_names:
-        try:
-            label = gh_repo.get_label(name)
-        except github.UnknownObjectException:
-            label = gh_repo.create_label(name, '3333FF')
-        labels[name] = label
+        name = name.strip().lower()
+        if name not in labels:
+            label = gh_repo.create_label(name, 'ef13e8')
+            labels[name] = label
+    # create map for tranlating bugzilla labels to github
+    label_map = {}
+    lm = convert_config.options('label_map')
+    for l in lm:
+        label_map[l.lower()] = convert_config.get('label_map', l).strip()
 
     # create the xml bug list
     xml_bug_list = convert_config.get('bugzilla', 'xml_bug_list')
@@ -350,12 +449,23 @@ def main(options):
             print('Processing bug {0}'.format(bug_id))
 
         issue_title = bug.find('./short_desc')
-        # select the milestone based on bugzilla info
-        use_milestone = None
-        for milestone in milestones:
-            if milestone.title == 'test-milestone':
-                use_milestone = milestone
+        # check for labels
+        new_labels = []
+        update_issue_label_list(bug, 'priority', labels, label_map, new_labels)
+        update_issue_label_list(bug, 'bug_severity', labels, label_map, new_labels)
+        # check for milestone
+        new_milestone = None
+        target_milestone = bug.find('./target_milestone')
+        if target_milestone is not None:
+            tmilestone = target_milestone.text
+            tmilestone = tmilestone.strip().lower()
+            new_milestone = milestones[milestone_map[tmilestone]]
 
+        # search for optional fields that don't directly translate to gh
+        cc_list = optional_list(bug, 'cc')
+        blocks_list = optional_list(bug, 'blocks')
+        depends_list = optional_list(bug, 'dependson')
+        attachment_list = create_attachment_list(bug)
         # all text is contained in comments. comment 0 is the main
         # issue text.
         gh_issue = None
@@ -366,14 +476,18 @@ def main(options):
             attempts = 0
             if comment_count == '0':
                 # create the issue, comment 0 is main issue text
-                body_text = b2g_comment(bug_id, comment)
+                body_text = b2g_comment(bug_id, comment, main_issue=True,
+                                        cc_list=cc_list,
+                                        blocks_list=blocks_list,
+                                        depends_list=depends_list,
+                                        attachment_list=attachment_list)
+
                 while (not object_created) and (attempts < max_attempts):
                     try:
                         gh_issue = gh_repo.create_issue(
                             issue_title.text, body=body_text,
-                            # assignee=gh_users['bandre-ucar'],
-                            milestone=use_milestone,
-                            labels=[labels['test-label']])
+                            milestone=new_milestone,
+                            labels=new_labels)
                         object_created = True
                     except github.GithubException as error:
                         check_for_abuse_error(error.status, error.data)
@@ -388,7 +502,6 @@ def main(options):
                     except github.GithubException as error:
                         check_for_abuse_error(error.status, error.data)
                         attempts += 1
-
 
     return 0
 
