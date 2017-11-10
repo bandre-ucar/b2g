@@ -272,6 +272,16 @@ def optional_list(bug, field):
     return new_list
 
 
+def optional_text(data_list, header_text):
+    text = ''
+    if data_list:
+        text = header_text
+        for item in data_list:
+            text = "{0} {1}, ".format(text, item)
+        text = "{0}\n".format(text)
+    return text
+
+
 def b2g_comment(bug_id, comment, main_issue=False, cc_list=[],
                 blocks_list=[], depends_list=[],
                 attachment_list=[]):
@@ -281,49 +291,32 @@ def b2g_comment(bug_id, comment, main_issue=False, cc_list=[],
     when_text = comment.find('./bug_when').text
     comment_text = comment.find('./thetext').text
 
+    id_text = ''
+    blocks_text = ''
+    depends_text = ''
+    cc_text = ''
+    attachment_text = ''
     if main_issue:
-        blocks_text = "**Bugzilla Blocks:** "
-        if not blocks_list:
-            blocks_list.append('None')
-        for blocks in blocks_list:
-            blocks_text = "{0} {1}, ".format(blocks_text, blocks)
-        blocks_text = "{0}\n".format(blocks_text)
+        base_url = "http://bugz.cgd.ucar.edu/show_bug.cgi?id"
+        id_text = "**Bugzilla Id:** [{bugid}]({url}={bugid})\n".format(
+            bugid=bug_id, url=base_url)
 
-        depends_text = "**Bugzilla Depends:** "
-        if not depends_list:
-            depends_list.append('None')
-        for depends in depends_list:
-            depends_text = "{0} {1}, ".format(depends_text, depends)
-        depends_text = "{0}\n".format(depends_text)
+        blocks_text = optional_text(blocks_list, "**Bugzilla Blocks:** ")
+        depends_text = optional_text(depends_list, "**Bugzilla Depends:** ")
+        cc_text = optional_text(cc_list, "**Bugzilla CC:** ")
 
-        cc_text = "**Bugzilla CC:** "
-        if not cc_list:
-            cc_list.append('None')
-        for cc in cc_list:
-            cc_text = "{0} {1}, ".format(cc_text, cc)
-        cc_text = "{0}\n".format(cc_text)
-
-        attachment_text = ''
-        attachment_base = '**Bugzilla Attachment:** '
-        if not attachment_list:
-            attachment_list.append('None')
-        for attachment in attachment_list:
-            txt = '{0} {1}\n'.format(attachment_base, attachment)
-            attachment_text = '{0}{1}'.format(attachment_text, txt)
-        attachment_text = '{0}\n'.format(attachment_text)
-
-    else:
-        blocks_text = ''
-        depends_text = ''
-        cc_text = ''
-        attachment_text = ''
+        if attachment_list:
+            attachment_base = '**Bugzilla Attachment:** '
+            for attachment in attachment_list:
+                txt = '{0} {1}\n'.format(attachment_base, attachment)
+                attachment_text = '{0}{1}'.format(attachment_text, txt)
 
     body_text = '''**{who} - {when}**
-**Bugzilla Id:** {id}
-{blocks}{depends}{cc}{attachment}{cmmnt}'''.format(
-    id=bug_id, who=who_text, when=when_text,
-    cc=cc_text, blocks=blocks_text, depends=depends_text,
-    cmmnt=comment_text, attachment=attachment_text)
+{bugid}{blocks}{depends}{cc}{attachment}
+{cmmnt}'''.format(
+        bugid=id_text, who=who_text, when=when_text,
+        cc=cc_text, blocks=blocks_text, depends=depends_text,
+        cmmnt=comment_text, attachment=attachment_text)
     return body_text
 
 # -----------------------------------------------------------------------
