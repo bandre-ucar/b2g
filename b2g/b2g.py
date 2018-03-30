@@ -319,12 +319,12 @@ def b2g_comment(bug_id, comment, main_issue=False, cc_list=[],
         cmmnt=comment_text, attachment=attachment_text)
     return body_text
 
+
 # -----------------------------------------------------------------------
 #
 # main
 #
 # -----------------------------------------------------------------------
-
 def main(options):
     b2g_config = read_config_file(options.b2g_config[0])
     _user = b2g_config.get("github", "user")
@@ -340,7 +340,7 @@ def main(options):
         return 0
 
     resume = options.resume[0]
-    
+
     friendly_pause = 5
 
     convert_config = read_config_file(options.convert_config[0])
@@ -350,27 +350,41 @@ def main(options):
     # get the authorized user
     gh_auth_user = gh.get_user()
 
-    gh_repo = gh_auth_user.get_repo(_repository)
+    try:
+        gh_repo = gh_auth_user.get_repo(_repository)
+    except github.UnknownObjectException:
+        try:
+            gh_org = gh.get_organization(_organization)
+            gh_repo = gh_org.get_repo(_repository)
+        except github.UnknownObjectException:
+            gh_repo = None
+
     if not resume:
         # delete existing test repository
         print('Deleting existing repository: {0}'.format(_repository))
         try:
-            gh_repo.delete()
+            if gh_repo:
+                gh_repo.delete()
         except github.UnknownObjectException:
             # repository doesn't exist
             pass
-        
+
         time.sleep(friendly_pause)
-        
+
         # recreate test repo
         print('Creating repository: {0}'.format(_repository))
         gh_repo = gh_auth_user.create_repo(
             _repository,
             description=convert_config.get('github', 'description'),
             has_issues=True, auto_init=False)
-        
+
         time.sleep(friendly_pause)
 
+    if not gh_repo:
+        msg = ("Could not find or create github repository object "
+               "for the authenticated user: {0}/{1}".format(
+                   _organization, _repository))
+        raise RuntimeError(msg)
 
     if False:
         # create a lookup table of xml users?

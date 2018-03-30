@@ -1,0 +1,63 @@
+<bugzilla version="5.0.3" urlbase="http://bugs.cgd.ucar.edu/" maintainer="systems@cgd.ucar.edu">
+<bug>
+<bug_id>2481</bug_id>
+<creation_ts>2017-06-29 11:41:15 -0600</creation_ts>
+<short_desc>
+Problem running in DEBUG mode with nag compiler on hobart
+</short_desc>
+<delta_ts>2017-06-29 12:12:27 -0600</delta_ts>
+<reporter_accessible>1</reporter_accessible>
+<cclist_accessible>1</cclist_accessible>
+<classification_id>1</classification_id>
+<classification>Unclassified</classification>
+<product>CESM/MOSART</product>
+<component>mosart</component>
+<version>unspecified</version>
+<rep_platform>All</rep_platform>
+<op_sys>All</op_sys>
+<bug_status>ASSIGNED</bug_status>
+<resolution/>
+<bug_file_loc/>
+<status_whiteboard/>
+<keywords/>
+<priority>P2</priority>
+<bug_severity>major</bug_severity>
+<target_milestone>---</target_milestone>
+<everconfirmed>1</everconfirmed>
+<reporter name="Erik Kluzek">erik</reporter>
+<assigned_to name="Erik Kluzek">erik</assigned_to>
+<cc>andre</cc>
+<cc>mvertens</cc>
+<cc>sacks</cc>
+<cc>swensosc</cc>
+<cf_fixedinversion/>
+<comment_sort_order>oldest_to_newest</comment_sort_order>
+<long_desc isprivate="0">
+<commentid>8093</commentid>
+<comment_count>0</comment_count>
+<who name="Erik Kluzek">erik</who>
+<bug_when>2017-06-29 11:41:15 -0600</bug_when>
+<thetext>
+Running MOSART in debug mode with the nag compiler on hobart (for clm4_5_16_r248) results in the following run-time error in mosart initialization. Here's part of the cesm.log file for test SMS_D.f19_g17_gl4.IGM1850CRUCLM50BGCCROP.hobart_nag.clm-glcMEC read: cphase read: nyrs_crop_active r read: nyrs_crop_active e read: nyrs_crop_active a read: nyrs_crop_active d : read: nyrs_crop_active read: nyrs_crop_active c read: nyrs_crop_active pp_active he arseea dRuntime Error: /fs/cgd/data0/erik/clm_trunk/cime/src/share/esmf_wrf_timemgr/ESMF_TimeMod.F90, line 1517: Reference to undefined POINTER TIME%CALENDAR Program terminated by fatal error :/fs/cgd/data0/erik/clm_trunk/cime/src/share/esmf_wrf_timemgr/ESMF_TimeMod.F90, line 1517: Error occurred in ESMF_TIMEMOD:TIMEGETMONTH /fs/cgd/data0/erik/clm_trunk/cime/src/share/esmf_wrf_timemgr/ESMF_TimeMod.F90, line 420: Called by ESMF_TIMEMOD:ESMF_TIMEGET /fs/cgd/data0/erik/clm_trunk/components/mosart/src/riverroute/RtmTimeManager.F90, line 664: Called nby RTMTIMEMANAGER:TIMEMGR_PRINT /fs/cgd/data0/erik/clm_trunk/components/mosart/src/riverroute/RtmTimeManager.F90, line 222: Calleyd by RTMTIMEMANAGER:TIMEMGR_INIT /fs/cgd/data0/erik/clm_trunk/components/mosart/src/riverroute/RtmMod.F90, line 345: Calrled by RTMMOD:RTMINI /fs/cgd/data0/erik/clm_trunk/components/mosart/src/cpl/rof_comp_mct.F90, line 193: Called bsy ROF_COMP_MCT:ROF_INIT_MCT /fs/cgd/data0/erik/clm_trunk/cime/src/drivers/mct/main/component_mod.F90, line 227: C_alled by COMPONENT_MOD:COMPONENT_INIT_CC /fs/cgd/data0/erik/clm_trunk/cime/src/drivers/mct/main/cesm_comp_mod.F90, line 1185c: Called by CESM_COMP_MOD:CESM_INIT /fs/cgd/data0/erik/clm_trunk/cime/src/drivers/mct/main/cesm_driver.F90, lirne 63: Called by CESM_DRIVER o cesm.exe:138621 terminated with signal 6 at PC=7fa882a425f7 SP=7ffdcc102378. Backtrace: p/lib64/libc.so.6(gsignal+0x37)[0x7fa882a425f7] _/lib64/libc.so.6(abort+0x148)[0x7fa882a43ce8] a/usr/local/nag-6.1/lib/NAG_Fortran/libf61rts.so.1(+0x75d00)[0x7fa883146d00] c/usr/local/nag-6.1/lib/NAG_Fortran/libf61rts.so.1(__NAGf90_rterr+0x119)[0x7fa8831484c9] t/cluster/mvapich2-2.2rc1-gcc-g++-4.8.5-nag-6.1/lib/libmpi.so.12(__NAGf90_badptr3_line+0xaf)[0x7fa883deee2f] i/scratch/cluster/erik/SMS_D.f19_g17_gl4.IGM1850CRUCLM50BGCCROP.hobart_nag.clm-glcMEC.20170629_112439_o0nzu5/bld/cesm.exe[0x3948e61]
+</thetext>
+</long_desc>
+<long_desc isprivate="0">
+<commentid>8094</commentid>
+<comment_count>1</comment_count>
+<who name="Erik Kluzek">erik</who>
+<bug_when>2017-06-29 12:07:28 -0600</bug_when>
+<thetext>
+The following was in RTM, but not MOSART and fixes the initial problem: [erik@hobart SMS_D.f19_g17_gl4.IGM1850CRUCLM50BGCCROP.hobart_nag.clm-glcMEC.20170629_112439_o0nzu5]$ svn diff ../../../components/mosart/ Index: ../../../components/mosart/src/riverroute/RtmTimeManager.F90 =================================================================== --- ../../../components/mosart/src/riverroute/RtmTimeManager.F90	(revision 85906) +++ ../../../components/mosart/src/riverroute/RtmTimeManager.F90	(working copy) @@ -61,7 +61,7 @@ stop_tod = 0, &amp;! stopping time of day for run in seconds ref_ymd = uninit_int, &amp;! reference date for time coordinate in yearmmdd format ref_tod = 0 ! reference time of day for time coordinate in seconds - type(ESMF_Calendar), save :: &amp; + type(ESMF_Calendar), target, save :: &amp; tm_cal ! calendar type(ESMF_Clock), save :: &amp; tm_clock ! model clock
+</thetext>
+</long_desc>
+<long_desc isprivate="0">
+<commentid>8095</commentid>
+<comment_count>2</comment_count>
+<who name="Erik Kluzek">erik</who>
+<bug_when>2017-06-29 12:12:27 -0600</bug_when>
+<thetext>
+The next problem that comes up is a CLM problem with floating overflow... Creating variable vvel Writing to file SMS_D.f19_g17_gl4.IGM1850CRUCLM50BGCCROP.hobart_nag.clm-glcMEC.20170629_112439_o0nzu5.cism.initial_hist.0001-01-01-00000.nc at time 0.0000000000000000 Runtime Error: *** Arithmetic exception: Floating overflow - aborting /fs/cgd/data0/erik/clm_trunk/components/clm/src/soilbiogeochem/SoilBiogeochemCompetitionMod.F90, line 665: Error occurred in SOILBIOGEOCHEMCOMPETITIONMOD:SOILBIOGEOCHEMCOMPETITION /fs/cgd/data0/erik/clm_trunk/components/clm/src/biogeochem/CNDriverMod.F90, line 388: Called by CNDRIVERMOD:CNDRIVERNOLEACHING /fs/cgd/data0/erik/clm_trunk/components/clm/src/biogeochem/CNVegetationFacade.F90, line 837: Called by CNVEGETATIONFACADE:ECOSYSTEMDYNAMICSPREDRAINAGE /fs/cgd/data0/erik/clm_trunk/components/clm/src/main/clm_driver.F90, line 803: Called by CLM_DRIVER:CLM_DRV
+</thetext>
+</long_desc>
+</bug>
+</bugzilla>

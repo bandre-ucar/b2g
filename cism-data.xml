@@ -1,0 +1,503 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<!DOCTYPE bugzilla SYSTEM "http://bugs.cgd.ucar.edu/page.cgi?id=bugzilla.dtd">
+
+<bugzilla version="5.0.3"
+          urlbase="http://bugs.cgd.ucar.edu/"
+          
+          maintainer="systems@cgd.ucar.edu"
+>
+
+    <bug>
+          <bug_id>2507</bug_id>
+          
+          <creation_ts>2017-09-05 12:41:58 -0600</creation_ts>
+          <short_desc>New CISM time management aborts for leap years</short_desc>
+          <delta_ts>2017-09-08 12:44:35 -0600</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CESM Glimmer-CISM</product>
+          <component>glc</component>
+          <version>CESM2.0.z Development</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>NEW</bug_status>
+          <resolution></resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P3</priority>
+          <bug_severity>normal</bug_severity>
+          <target_milestone>---</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks</reporter>
+          <assigned_to name="Bill Sacks">sacks</assigned_to>
+          <cc>fyke</cc>
+    
+    <cc>lipscomb</cc>
+    
+    <cc>mvertens</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>8195</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2017-09-05 12:41:58 -0600</bug_when>
+    <thetext>A few months ago, Mariana and I put in new CISM time management, where the coupler averages to a year before sending values to CISM. We put in place the following error check to ensure that CISM gets inputs at the time it expects them - because if the coupler and CISM are out of sync, CISM may be running with very wrong forcing values (e.g., always running with 0 values):
+
+    else if (time - av_start_time + params%time_step == params%tstep_mbal) then  
+
+       if  (.not. valid_inputs) then
+          write(message,*) &amp;
+               &apos;Valid_inputs cannot be .false. if trying to do a mass balance time step&apos;
+          call write_log(message,GM_FATAL,__FILE__,__LINE__)
+       end if
+
+
+However, Louisa Emmons ran into a problem trying to run with a Gregorian calendar:
+
+----
+I am trying to run compset FCSD from 2011-2016, and seem to have gotten stuck because 2012 is a leap year.  I guess I could just switch to a 365-day calendar.
+
+My case run directory is:
+/glade/scratch/emmons/cesm2alph07_FCSD_09x1_TS1mamsoa/run
+which used source code in:
+/glade/p/work/fvitt/cesm/cesm2_0_alpha07c/
+
+These are the log error messages:
+glc.log:
+ WARNING: GLINT will not handle leap years correctly!!!
+...
+  * FATAL ERROR : (glad_main.F90:650)  Valid_inputs cannot be .false. if trying 
+ to do a mass balance time step
+
+cesm.log:
+189:  * FATAL ERROR : (glad_main.F90:650)  Valid_inputs cannot be .false. if trying 
+189: to do a mass balance time step
+189: Exiting with fatal error: this_rank =         189
+0: PARALLEL STOP in glimmer_log.F90 at line          180
+----
+
+Indeed, I don&apos;t think we tested this with a Gregorian calendar. CISM has never run correctly with a Gregorian calendar, but we&apos;ve tried to make sure that it doesn&apos;t abort.
+
+We need to determine how to get back to a situation where at least it doesn&apos;t abort.
+
+Solutions I can see are:
+
+- Fix the problem robustly to allow gregorian runs with cism, by changing cism&apos;s time management
+
+This would likely be a lot of work, and isn&apos;t favored by CISM folks, because they have no need for it.
+
+- Bypass the above error checks if running with a Gregorian calendar
+
+This might work, but I think we&apos;ll get more and more out of sync over time, which might cause some other problems.
+
+- Some kludgey change to CISM&apos;s time handling to sort of do the right thing when running with a Gregorian calendar
+
+This would be non-trivial because of the complexity of CISM&apos;s time handling - though would likely be easier than a full, robust reimplementation of time management in CISM.
+
+e.g., we could temporarily modify tstep_mbal and related variables in leap years. It may not do exactly the right thing, but we could probably get it to do approximately the right thing - e.g., still running the CISM dynamics at the end of each year, whether or not it&apos;s a leap year.
+
+- Get CLM working with glc_mec with SGLC. Then don&apos;t allow CISM with a Gregorian calendar, but provide this alternative so you can run a reasonable glc_mec configuration with a Gregorian calendar.
+
+This is probably my preference (because we want this SGLC support for other reasons, too), as long as there aren&apos;t too many people who want to be able to run with a Gregorian calendar.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>8199</commentid>
+    <comment_count>1</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2017-09-08 12:44:35 -0600</bug_when>
+    <thetext>The decision at the CLM-CMT meeting Tuesday was to go with this solution for CESM2, deferring a robust handling of Gregorian calendar in CISM until post-CESM2:
+
+&gt; - Get CLM working with glc_mec with SGLC. Then don&apos;t allow CISM with a Gregorian calendar, but provide this alternative so you can run a reasonable glc_mec configuration with a Gregorian calendar.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>1978</bug_id>
+          
+          <creation_ts>2014-05-16 16:08:31 -0600</creation_ts>
+          <short_desc>can&apos;t use double-quoted file names in user_nl_cism</short_desc>
+          <delta_ts>2014-05-16 19:00:37 -0600</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CESM Glimmer-CISM</product>
+          <component>glc</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>ASSIGNED</bug_status>
+          <resolution></resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P3</priority>
+          <bug_severity>minor</bug_severity>
+          <target_milestone>---</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks</reporter>
+          <assigned_to name="Bill Sacks">sacks</assigned_to>
+          <cc>erik</cc>
+    
+    <cc>lipscomb</cc>
+    
+    <cc>mvertens</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>6151</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2014-05-16 16:08:31 -0600</bug_when>
+    <thetext>For some reason it doesn&apos;t work to use double-quoted file names in user_nl_cism - these must be single-quoted. I have known about this problem since last year, but it once again caused a problem (for Gail Gutowski). I looked into this a year ago and couldn&apos;t figure it out, but I should revisit it at some point. 
+
+Perhaps it would be possible to put in place a workaround in CISM&apos;s build_namelist that translates double-quoted strings to single-quoted?</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>6152</commentid>
+    <comment_count>1</comment_count>
+    <who name="Erik Kluzek">erik</who>
+    <bug_when>2014-05-16 16:37:26 -0600</bug_when>
+    <thetext>Hmmm. That&apos;s interesting, because there is logic in Namelist.pm to handle either one. I thought there might be a unit test for it as well, but perl5lib/t/04.t always uses single quote for strings.
+
+So I switched a single quote string for double and it does still work. When I switched one that is validated it does NOT however. So I bet the problem is that the validation assumes a single quote. The validation should probably make sure there are quotes, but let either one pass.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>6153</commentid>
+    <comment_count>2</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2014-05-16 19:00:37 -0600</bug_when>
+    <thetext>Hi Erik,
+
+Thanks for your reply. I think this is actually something cism-specific, related to its config file reader. But I can&apos;t remember the details (I looked into this about a year ago, then forgot about it).</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>1591</bug_id>
+          
+          <creation_ts>2012-11-19 09:33:45 -0700</creation_ts>
+          <short_desc>need new TG forcing data with fixed tsrf</short_desc>
+          <delta_ts>2012-11-19 09:33:45 -0700</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CESM Glimmer-CISM</product>
+          <component>glc</component>
+          <version>CESM1.1.z Release</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>NEW</bug_status>
+          <resolution></resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P3</priority>
+          <bug_severity>normal</bug_severity>
+          <target_milestone>---</target_milestone>
+          <dependson>1590</dependson>
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks</reporter>
+          <assigned_to name="Bill Sacks">sacks</assigned_to>
+          <cc>erik</cc>
+    
+    <cc>lipscomb</cc>
+    
+    <cc>mvertens</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>4795</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2012-11-19 09:33:45 -0700</bug_when>
+    <thetext>The tsrf field from CLM -&gt; GLC had a bug in the version of the code used to generate the current TG forcing data. At some point, runs will be needed with this bug fixed.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>1495</bug_id>
+          
+          <creation_ts>2012-04-18 09:33:14 -0600</creation_ts>
+          <short_desc>code in cism/serial/ should be removed</short_desc>
+          <delta_ts>2012-04-18 09:33:14 -0600</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CESM Glimmer-CISM</product>
+          <component>glc</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>ASSIGNED</bug_status>
+          <resolution></resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P4</priority>
+          <bug_severity>minor</bug_severity>
+          <target_milestone>---</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks</reporter>
+          <assigned_to name="Bill Sacks">sacks</assigned_to>
+          <cc>erik</cc>
+    
+    <cc>lipscomb</cc>
+    
+    <cc>mvertens</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>4517</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2012-04-18 09:33:14 -0600</bug_when>
+    <thetext>It doesn&apos;t seem like the code in cism/serial is ever used. Furthermore, it doesn&apos;t look like glc_communicate.F90 will work correctly as written. 
+
+Also, once I add multi-instance support, I think the code in glc_communicate.F90 will be even more wrong (e.g., cmodel -- does this need to be generalized to include the instance number after &apos;glc&apos;?). Rather than trying to fix this, I think it would be best just to remove this unused code.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>1441</bug_id>
+          
+          <creation_ts>2011-12-14 10:27:05 -0700</creation_ts>
+          <short_desc>glc time manager doesn&apos;t restart properly when last run stopped in the middle of a day</short_desc>
+          <delta_ts>2011-12-14 10:27:05 -0700</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CESM Glimmer-CISM</product>
+          <component>glc</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>ASSIGNED</bug_status>
+          <resolution></resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P3</priority>
+          <bug_severity>normal</bug_severity>
+          <target_milestone>---</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks</reporter>
+          <assigned_to name="Bill Sacks">sacks</assigned_to>
+          <cc>erik</cc>
+    
+    <cc>lipscomb</cc>
+    
+    <cc>mvertens</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>4339</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2011-12-14 10:27:05 -0700</bug_when>
+    <thetext>The information contained in the cism restart files only allow the time manager to restart properly if the last run stopped at a day boundary. For POP, seconds_this_day is written to the restart file, but that isn&apos;t done for cism; I believe that is the cause of the problem. 
+
+Once this is fixed, a unit test should be added to test this capability in test/unit/time_management.
+
+While fixing this bug, we should also look for other time management-related quantities that are in the pop restart file but not the cism restart file.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>1433</bug_id>
+          
+          <creation_ts>2011-11-18 11:45:16 -0700</creation_ts>
+          <short_desc>Time manager (glc_time_management.F90) needs some additional changes to support longer timesteps and leap years</short_desc>
+          <delta_ts>2016-11-10 14:10:00 -0700</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CESM Glimmer-CISM</product>
+          <component>glc</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>ASSIGNED</bug_status>
+          <resolution></resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P4</priority>
+          <bug_severity>minor</bug_severity>
+          <target_milestone>---</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks</reporter>
+          <assigned_to name="Bill Sacks">sacks</assigned_to>
+          <cc>erik</cc>
+    
+    <cc>lipscomb</cc>
+    
+    <cc>mvertens</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>4313</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2011-11-18 11:45:16 -0700</bug_when>
+    <thetext>I am modifying the time manager to allow longer timesteps (multi-month, annual or multi-year). However, I am not fixing everything right now. 
+
+Things I have found that need to be fixed in the future:
+
+- determination of newhour in subroutine time_manager: I believe that this line:
+
+   if (ihour /= ihour_last) newhour = .true.
+
+will not work for time steps that are multiples of a day
+
+
+
+Also, I have not checked all of the code completely to be sure that things will work correctly for longer timesteps. In particular, I have not checked the code that determines stopping conditions: does any of this stop-related code implicitly assume timesteps shorter than about 1 month? Similarly for the time_to_do and time_to_start functions.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>4314</commentid>
+    <comment_count>1</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2011-11-22 15:44:37 -0700</bug_when>
+    <thetext>A number of pieces of code won&apos;t work correctly for long time steps if leap years are allowed:
+
+(1) dt isn&apos;t modified from one timestep to the next. This sort of dynamic step size would be needed for, e.g., 1-year time steps. This is also a problem for any time step specified in terms of the dt_option &apos;steps_per_year&apos;
+
+(2) The loop in the reduce_seconds subroutine doesn&apos;t allow for variations in seconds_in_year from one iteration to the next. I believe this is only a problem for time steps longer than one year.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>4326</commentid>
+    <comment_count>2</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2011-12-05 14:46:25 -0700</bug_when>
+    <thetext>Nancy Norton suggests: handling leap years *may* be easier if we just write special purpose subroutines to handle timesteps of, say, multiples of a year (and other than that, don&apos;t allow timesteps greater than a year).</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>4338</commentid>
+    <comment_count>3</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2011-12-08 20:21:25 -0700</bug_when>
+    <thetext>&gt; (2) The loop in the reduce_seconds subroutine doesn&apos;t allow for variations in
+&gt; seconds_in_year from one iteration to the next. I believe this is only a
+&gt; problem for time steps longer than one year.
+
+It turns out there is a larger problem with the reduce_seconds subroutine when leap years are allowed: it uses the value of seconds_in_year that was set most recently, which in the current flow through the code is NOT the seconds_in_year for the current time step. This may a problem in other places in the code, too - the determination of whether it&apos;s a leap year (and the consequent setting of seconds_in_year and other variables) is out of sync with some of the places that use the information on whether it&apos;s a leap year, so these leap year-dependent variables sometimes refer to the wrong year. 
+
+This problem shows up for time steps shorter than a year - e.g., on the order of 6 months to a year. The problem shows up in the oneyear_leap test in test/unit/time_management, which tests a 365-day time step with leap years active. For this test, the model aborts with the error, &quot;Unhandled condition in ymd_hms: iday &gt; days_in_month&quot;, but the real problem seems to be that the leap year variables are out of sync.
+
+I don&apos;t think this is a problem for short time steps (e.g., order 1 day), but I&apos;m not positive at what point it becomes a problem.
+
+The current flow in time_manager is:
+
+- (for time step = 1, reduce_seconds called for the current time step)
+
+- reduce_seconds called for the next time step
+
+- model_date called for the current time step, which includes determining iyear and calling leap_adjust for the current time step
+
+
+Thus, if I understand this right, the main reduce_seconds call - i.e., the one that operates on the values for the next time step - uses seconds_in_year from the previous time step. I would need to think more about whether it should be using seconds_in_year from the current time step or the next time step, but I know it&apos;s wrong to be using seconds_in_year from the previous time step.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>4742</commentid>
+    <comment_count>4</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2012-10-11 10:53:44 -0600</bug_when>
+    <thetext>I noticed that the driver&apos;s build-namelist doesn&apos;t allow a leap year calendar in conjunction with NCPL_BASE_PERIOD=year or decade. Since those NCPL_BASE_PERIODS are the only way to get dt_option=steps_per_year (unless the user overrides dt_option manually), I think it&apos;s not important for us to handle leap years in conjunction with dt_option=steps_per_year.
+
+However, it&apos;s probably still worth fixing some of the other leap year-related bugs in this bug report.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>7743</commentid>
+    <comment_count>5</comment_count>
+    <who name="Bill Sacks">sacks</who>
+    <bug_when>2016-11-10 14:10:00 -0700</bug_when>
+    <thetext>In a recent discussion, Mariana suggested ditching the current time manager (based on POP, which has quite a few complexities) and using a much simpler one. I may want to do that rather than patching up the current time manager.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+
+</bugzilla>

@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<!DOCTYPE bugzilla SYSTEM "http://bugs.cgd.ucar.edu/page.cgi?id=bugzilla.dtd">
+
+<bugzilla version="5.0.3"
+          urlbase="http://bugs.cgd.ucar.edu/"
+          
+          maintainer="systems@cgd.ucar.edu"
+          exporter="andre@ucar.edu"
+>
+
+    <bug>
+          <bug_id>1796</bug_id>
+          
+          <creation_ts>2013-08-29 12:29:49 -0600</creation_ts>
+          <short_desc>add numg, numl, numc and nump to bounds derived type</short_desc>
+          <delta_ts>2013-09-20 13:50:23 -0600</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CCSM/CESM CLM</product>
+          <component>CLM 4.5</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>RESOLVED</bug_status>
+          <resolution>LATER</resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P5</priority>
+          <bug_severity>enhancement</bug_severity>
+          <target_milestone>CLM5</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Bill Sacks">sacks@ucar.edu</reporter>
+          <assigned_to name="Erik Kluzek">erik@ucar.edu</assigned_to>
+          <cc>muszala@ucar.edu</cc>
+    
+    <cc>mvertens@ucar.edu</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+          <token>1513656144-803XXePP9SDpbcfr6nt_5aQagVCpKp6fGiwr056p9uE</token>
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>5418</commentid>
+    <comment_count>0</comment_count>
+    <who name="Bill Sacks">sacks@ucar.edu</who>
+    <bug_when>2013-08-29 12:29:49 -0600</bug_when>
+    <thetext>I added the following code, then removed it when I found that it isn&apos;t needed right now - in order to avoid having unused, untested code in the system. This tracks the number of gridcells, landunits, columns &amp; pfts that each clump (or proc) is responsible for.
+
+But I&apos;m filing this placeholder in case we find we want this later.
+```PATCH
+Index: decompMod.F90
+===================================================================
+--- decompMod.F90	(revision 50583)
++++ decompMod.F90	(revision 50582)
+@@ -42,6 +42,8 @@
+   public get_proc_bounds    ! this processor beg and end gridcell,landunit,column,pft
+ 
+   ! !PRIVATE MEMBER FUNCTIONS:
++  private compute_bounds_derived_info
++     
+   !
+   ! !PRIVATE TYPES:
+   private  ! (now mostly public for decompinitmod)
+@@ -58,6 +60,11 @@
+      integer :: begc, endc       ! beginning and ending column index
+      integer :: begp, endp       ! beginning and ending pft index
+ 
++     integer :: numg             ! number of grid cells
++     integer :: numl             ! number of landunits
++     integer :: numc             ! number of columns
++     integer :: nump             ! number of pfts
++
+      integer :: level            ! whether defined on the proc or clump level
+      integer :: clump_index      ! if defined on the clump level, this gives the clump index
+   end type bounds_type
+@@ -148,6 +155,8 @@
+      bounds%begg = clumps(cid)%begg
+      bounds%endg = clumps(cid)%endg
+      
++     call compute_bounds_derived_info(bounds)
++
+      bounds%level = BOUNDS_LEVEL_CLUMP
+      bounds%clump_index = n
+ 
+@@ -207,6 +216,8 @@
+      bounds%begg = procinfo%begg
+      bounds%endg = procinfo%endg
+ 
++     call compute_bounds_derived_info(bounds)
++
+      bounds%level = BOUNDS_LEVEL_PROC
+      bounds%clump_index = -1           ! irrelevant for proc, so assigned a bogus value
+ 
+@@ -362,4 +373,24 @@
+     end select
+   end subroutine get_clmlevel_gsmap
+ 
++  !-----------------------------------------------------------------------
++  subroutine compute_bounds_derived_info (bounds)
++    !
++    ! !DESCRIPTION:
++    ! Given a bounds variable that has the basic info set (begg, endg, and similarly for
++    ! landunit, col and pft), compute derived variables.
++    !
++    ! !USES:
++    !
++    ! !ARGUMENTS:
++    implicit none
++    type(bounds_type), intent(inout) :: bounds
++    !----------------------------------------------------------------------
++
++    bounds%numg = bounds%endg - bounds%begg + 1
++    bounds%numl = bounds%endl - bounds%begl + 1
++    bounds%numc = bounds%endc - bounds%begc + 1
++    bounds%nump = bounds%endp - bounds%begp + 1
++  end subroutine compute_bounds_derived_info
++
+end module decompMod
+```
+    </thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>845</bug_id>
+          
+          <creation_ts>2008-10-23 11:10:11 -0600</creation_ts>
+          <short_desc>(CLM-only) Add a pftdyn test with constant pft&apos;s to give same answers as constant pft case</short_desc>
+          <delta_ts>2013-08-29 15:24:15 -0600</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CCSM/CESM CLM</product>
+          <component>clm3.6</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>RESOLVED</bug_status>
+          <resolution>LATER</resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P3</priority>
+          <bug_severity>enhancement</bug_severity>
+          <target_milestone>CLM5</target_milestone>
+          
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Erik Kluzek">erik@ucar.edu</reporter>
+          <assigned_to name="Erik Kluzek">erik@ucar.edu</assigned_to>
+    
+    <cc>dlawren@ucar.edu</cc>
+    
+    <cc>lawrence@ucar.edu</cc>
+    
+    <cc>muszala@ucar.edu</cc>
+    
+    <cc>oleson@ucar.edu</cc>
+    
+    <cc>slevis@ucar.edu</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+          <token>1513656144-2XSHQ7IQAxHL2Ta54k3l4BND-eaY1mEzH_3XVfZs2eo</token>
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>2324</commentid>
+    <comment_count>0</comment_count>
+    <who name="Erik Kluzek">erik@ucar.edu</who>
+    <bug_when>2008-10-23 11:10:11 -0600</bug_when>
+    <thetext>Suggestion from Sam...
+
+Keith and I confirmed in our own recent use of the clm test-suite that dyn. landuse tests have been passing (as Erik said, too). This includes multi-year point simulations and few-day global simulations, all with arbitrary initial conditions. Keith suggested trying a longer global run, but also a run in which the dyn. landuse data remains the same every year to show that this gives the same answers as a run without dyn. landuse.
+
+Erik, couldn&apos;t the latter could be added to the test suite because it&apos;s an objective test?</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>2405</commentid>
+    <comment_count>1</comment_count>
+    <who name="Erik Kluzek">erik@ucar.edu</who>
+    <bug_when>2008-12-10 15:44:33 -0700</bug_when>
+    <thetext>I&apos;d like to do this, but I&apos;d like to hold off until I have a better grasp of pftdyn file creation and we have more files to actually test with. So I&apos;m going to lower the priority until later.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>5431</commentid>
+    <comment_count>2</comment_count>
+    <who name="Erik Kluzek">erik@ucar.edu</who>
+    <bug_when>2013-08-29 15:24:15 -0600</bug_when>
+    <thetext>Good idea. Let&apos;s think about later.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+    <bug>
+          <bug_id>722</bug_id>
+          
+          <creation_ts>2008-03-19 13:39:22 -0600</creation_ts>
+          <short_desc>Threading is slow for clm</short_desc>
+          <delta_ts>2013-08-29 15:14:04 -0600</delta_ts>
+          <reporter_accessible>1</reporter_accessible>
+          <cclist_accessible>1</cclist_accessible>
+          <classification_id>1</classification_id>
+          <classification>Unclassified</classification>
+          <product>CCSM/CESM CLM</product>
+          <component>clm_exp</component>
+          <version>unspecified</version>
+          <rep_platform>All</rep_platform>
+          <op_sys>All</op_sys>
+          <bug_status>RESOLVED</bug_status>
+          <resolution>LATER</resolution>
+          
+          
+          <bug_file_loc></bug_file_loc>
+          <status_whiteboard></status_whiteboard>
+          <keywords></keywords>
+          <priority>P3</priority>
+          <bug_severity>normal</bug_severity>
+          <target_milestone>CLM5</target_milestone>
+          <dependson>1260</dependson>
+          
+          <everconfirmed>1</everconfirmed>
+          <reporter name="Erik Kluzek">erik@ucar.edu</reporter>
+          <assigned_to name="Erik Kluzek">erik@ucar.edu</assigned_to>
+    
+    <cc>sacks@ucar.edu</cc>
+          
+          <cf_fixedinversion></cf_fixedinversion>
+
+      
+          <token>1513656144-1S_Buauif0buZPXCMOczYcUpbbNkfq0VHYtijSCleLY</token>
+
+      
+
+      
+
+          <comment_sort_order>oldest_to_newest</comment_sort_order>  
+          <long_desc isprivate="0" >
+    <commentid>1971</commentid>
+    <comment_count>0</comment_count>
+    <who name="Erik Kluzek">erik@ucar.edu</who>
+    <bug_when>2008-03-19 13:39:22 -0600</bug_when>
+    <thetext>In performance testing on blueice, threads are about 30% slower than MPI tasks with CLM. In looking at the clump loops in driver.F90:
+
+driver1:
+```FORTRAN
+    interpMonthlyVeg
+
+    !OMP PARALLEL
+    do clump...
+
+    end do
+
+    some stuff here...
+
+
+    !OMP PARALLEL
+    do clump...
+
+
+    end do
+end subroutine driver1
+```
+driver2:
+```FORTRAN
+   I/O stuff...
+
+   !OMP PARALLEL
+   do clump
+   
+
+   end do
+
+   More I/O stuff...
+
+
+end subroutine driver2
+```
+At least some of this might be able to be made into a clump loop and more efficient with OMP parallelism.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>3731</commentid>
+    <comment_count>1</comment_count>
+    <who name="Erik Kluzek">erik@ucar.edu</who>
+    <bug_when>2011-01-08 20:20:44 -0700</bug_when>
+    <thetext>clm_driver seems to be better now. Bug 1260 will resolve part of the non-OMP stuff. The ndepstream_interp needs to be converted into OMP, clm_map2gcell, RTM, accuml-update, history-updates, write_diagnostics.</thetext>
+  </long_desc><long_desc isprivate="0" >
+    <commentid>5423</commentid>
+    <comment_count>2</comment_count>
+    <who name="Erik Kluzek">erik@ucar.edu</who>
+    <bug_when>2013-08-29 15:14:04 -0600</bug_when>
+    <thetext>We&apos;ve added some more things to this middle part for CLM4_5 with lightning and human population.
+
+I&apos;m going to put this in a new category for LATER.</thetext>
+  </long_desc>
+      
+      
+
+    </bug>
+
+</bugzilla>
